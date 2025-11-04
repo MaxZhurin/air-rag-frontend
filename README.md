@@ -139,6 +139,57 @@ pnpm run build
 pnpm run preview
 ```
 
+## Deployment on Railway
+
+This project includes a Dockerfile optimized for deployment on [Railway](https://railway.com/).
+
+### Prerequisites
+
+1. A Railway account
+2. GitHub repository with your code
+
+### Deployment Steps
+
+1. **Connect your repository to Railway:**
+   - Go to [Railway Dashboard](https://railway.app)
+   - Click "New Project"
+   - Select "Deploy from GitHub repo"
+   - Choose your repository
+
+2. **Configure environment variables:**
+   In Railway project settings, add the following environment variables:
+   ```
+   NUXT_PUBLIC_API_BASE=https://your-backend-url.com/api
+   NUXT_PUBLIC_GOOGLE_CLIENT_ID=your-google-client-id
+   ```
+
+3. **Deploy:**
+   - Railway will automatically detect the `Dockerfile` and start building
+   - The build process will:
+     - Install dependencies using pnpm
+     - Build the Nuxt application
+     - Create a production-ready Docker image
+
+4. **Custom Domain (Optional):**
+   - In Railway project settings, go to "Settings" → "Domains"
+   - Add your custom domain
+   - Railway will automatically configure SSL
+
+### Dockerfile Features
+
+- **Multi-stage build** for optimized image size
+- **Security**: Runs as non-root user
+- **Health checks** for Railway monitoring
+- **Automatic PORT handling** (Railway sets PORT automatically)
+- **Production optimizations** with minimal dependencies
+
+### Notes
+
+- Railway automatically sets the `PORT` environment variable
+- The application listens on `0.0.0.0` to accept external connections
+- Health checks are configured to monitor application status
+- Build time is optimized with layer caching
+
 ## Configuration
 
 ### Nuxt Config (`nuxt.config.ts`)
