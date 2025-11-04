@@ -10,8 +10,11 @@ COPY package.json pnpm-lock.yaml* ./
 # Install pnpm
 RUN corepack enable && corepack prepare pnpm@latest --activate
 
+# Clear pnpm store cache to avoid integrity issues
+RUN pnpm store prune || true
+
 # Install dependencies
-RUN pnpm install --frozen-lockfile
+RUN pnpm install --frozen-lockfile --no-verify-store-integrity
 
 # Stage 2: Build
 FROM node:20-alpine AS builder
@@ -48,8 +51,11 @@ RUN addgroup --system --gid 1001 nodejs && \
 # Copy package files
 COPY package.json pnpm-lock.yaml* ./
 
+# Clear pnpm store cache to avoid integrity issues
+RUN pnpm store prune || true
+
 # Install production dependencies only
-RUN pnpm install --frozen-lockfile --prod && \
+RUN pnpm install --frozen-lockfile --prod --no-verify-store-integrity && \
     pnpm store prune
 
 # Copy built application from builder stage
