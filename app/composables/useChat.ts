@@ -47,7 +47,6 @@ export const useChat = () => {
       
       chatStore.setCurrentChat(chatResponse.data)
       
-      // Обрабатываем сообщения для правильного отображения
       const processedMessages = messagesResponse.data.map((message: any) => {
         if (message.role === 'assistant') {
           return {

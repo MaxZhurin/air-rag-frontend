@@ -8,7 +8,6 @@ Modern AI chat interface built with Nuxt 4, Nuxt UI, and Tailwind CSS with docum
 - 🌓 Dark/Light mode support
 - 💬 Real-time AI chat interface
 - 📄 Document management dashboard
-- 🔐 Google OAuth authentication
 - 📱 Responsive design
 - ⚡ Fast and optimized with Nuxt 4
 
@@ -43,32 +42,6 @@ pnpm run dev
 
 The frontend will be available at `http://localhost:3000`
 
-## Project Structure
-
-```
-├── pages/                  # Nuxt pages (routes)
-│   ├── index.vue          # Login page
-│   ├── chat.vue           # Main chat interface
-│   └── auth/
-│       └── callback.vue   # OAuth callback
-├── components/            # Vue components
-│   ├── ChatInterface.vue  # Chat UI with sidebar
-│   └── DocumentsDashboard.vue
-├── composables/           # Vue composables
-│   ├── useApi.ts         # API client
-│   ├── useChat.ts        # Chat operations
-│   └── useDocuments.ts   # Document operations
-├── stores/                # Pinia stores
-│   ├── auth.ts           # Authentication state
-│   ├── chat.ts           # Chat state
-│   └── documents.ts      # Documents state
-├── middleware/            # Nuxt middleware
-│   └── auth.ts           # Auth guard
-├── app/
-│   └── app.vue           # Root component
-└── nuxt.config.ts        # Nuxt configuration
-```
-
 ## Pages
 
 ### Landing / Login (`/`)
@@ -95,18 +68,7 @@ Protected route with two tabs:
   - Actions menu (reprocess, delete)
 - Empty state when no documents
 
-### OAuth Callback (`/auth/callback`)
-- Handles Google OAuth redirect
-- Saves token and user data
-- Redirects to chat
-
 ## Features in Detail
-
-### Authentication
-- Google OAuth 2.0 integration
-- JWT token storage in localStorage
-- Automatic token refresh
-- Protected routes with middleware
 
 ### Chat
 - Create multiple chat sessions

@@ -1,15 +1,21 @@
 import { useDocumentsStore } from '~/stores/documents'
+import { useAuthStore } from '~/stores/auth'
 import { useApi } from './useApi'
 
 export const useDocuments = () => {
   const documentsStore = useDocumentsStore()
   const { api } = useApi()
 
-  const fetchDocuments = async (page: number = 1, limit: number = 10) => {
+  const fetchDocuments = async (page: number = 1, limit: number = 10, categoryId?: string | null) => {
     try {
-      const { data } = await api.get('/documents', {
-        params: { page, limit },
-      })
+      const params: any = { page, limit }
+      
+      // Add categoryId filter if provided
+      if (categoryId !== undefined) {
+        params.categoryId = categoryId === null ? null : categoryId
+      }
+      
+      const { data } = await api.get('/documents', { params })
       documentsStore.setDocuments(data.documents, data.total)
     } catch (error) {
       console.error('Error loading documents:', error)
@@ -74,10 +80,12 @@ export const useDocuments = () => {
 
   const deleteDocument = async (documentId: string) => {
     try {
+      documentsStore.setDeleting(documentId, true)
       await api.delete(`/documents/${documentId}`)
       documentsStore.removeDocument(documentId)
     } catch (error) {
       console.error('Error deleting document:', error)
+      documentsStore.setDeleting(documentId, false)
     }
   }
 
@@ -104,6 +112,7 @@ export const useDocuments = () => {
 
   const getDocumentOriginalUrl = async (documentId: string) => {
     try {
+      // Получаем URL для скачивания с токеном (используем api.get)
       const { data } = await api.get(`/documents/${documentId}/download`)
       return data.url
     } catch (error) {
@@ -114,20 +123,27 @@ export const useDocuments = () => {
 
   const downloadDocument = async (documentId: string, filename: string) => {
     try {
-      // Получаем URL для скачивания
+      const config = useRuntimeConfig()
+      const apiBaseUrl = config.public.apiBase as string
+      const authStore = useAuthStore()
+      
+      // Получаем URL для скачивания с токеном (используем api.get)
       const { data } = await api.get(`/documents/${documentId}/download`)
       const url = data.url
       
-      // Получаем токен авторизации
-      const token = localStorage.getItem('authToken') || sessionStorage.getItem('authToken')
-      
-      if (!token) {
-        throw new Error('No authentication token found')
+      let downloadUrl: string
+      if (url.startsWith('http://') || url.startsWith('https://')) {
+        downloadUrl = url
+      } else {
+        const baseURL = apiBaseUrl.replace(/\/api$/, '')
+        downloadUrl = `${baseURL}${url}`
       }
+
+      const token = authStore.getToken
       
       // Скачиваем файл с авторизацией
-      const fileResponse = await fetch(`${window.location.origin}${url}`, {
-        headers: { 'Authorization': `Bearer ${token}` }
+      const fileResponse = await fetch(downloadUrl, {
+        headers: token ? { 'Authorization': `Bearer ${token}` } : {}
       })
       
       if (!fileResponse.ok) {
@@ -135,22 +151,38 @@ export const useDocuments = () => {
       }
       
       const blob = await fileResponse.blob()
-      const downloadUrl = window.URL.createObjectURL(blob)
+      const blobUrl = window.URL.createObjectURL(blob)
       
       // Создаем ссылку для скачивания
       const a = document.createElement('a')
-      a.href = downloadUrl
+      a.href = blobUrl
       a.download = filename
       document.body.appendChild(a)
       a.click()
       document.body.removeChild(a)
       
       // Освобождаем память
-      window.URL.revokeObjectURL(downloadUrl)
+      window.URL.revokeObjectURL(blobUrl)
       
       return true
     } catch (error) {
       console.error('Error downloading document:', error)
+      throw error
+    }
+  }
+
+  const updateDocumentCategory = async (documentId: string, categoryId: string | null) => {
+    try {
+      const { data } = await api.put(`/documents/${documentId}/category`, {
+        categoryId,
+      })
+      documentsStore.updateDocument(documentId, {
+        categoryId: data.categoryId,
+        category: data.category,
+      })
+      return data
+    } catch (error: any) {
+      console.error('Error updating document category:', error)
       throw error
     }
   }
@@ -163,5 +195,6 @@ export const useDocuments = () => {
     getDocumentContent,
     getDocumentOriginalUrl,
     downloadDocument,
+    updateDocumentCategory,
   }
 }

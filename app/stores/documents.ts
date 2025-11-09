@@ -1,6 +1,12 @@
 import { defineStore } from 'pinia'
 
-interface Document {
+export interface Category {
+  id: string
+  name: string
+  description?: string
+}
+
+export interface Document {
   id: string
   name: string
   type: string
@@ -11,6 +17,12 @@ interface Document {
   updatedAt: string
   originalUrl?: string
   textContent?: string
+  categoryId?: string | null
+  category?: Category | null
+  uploadedBy?: {
+    email: string
+    name: string
+  }
 }
 
 export const useDocumentsStore = defineStore('documents', {
@@ -19,7 +31,14 @@ export const useDocumentsStore = defineStore('documents', {
     selectedDocument: null as Document | null,
     isUploading: false,
     total: 0,
+    deletingDocuments: new Set<string>(),
   }),
+
+  getters: {
+    isDeleting: (state) => (documentId: string) => {
+      return state.deletingDocuments.has(documentId)
+    },
+  },
 
   actions: {
     setDocuments(documents: Document[], total: number) {
@@ -35,6 +54,7 @@ export const useDocumentsStore = defineStore('documents', {
     removeDocument(documentId: string) {
       this.documents = this.documents.filter(d => d.id !== documentId)
       this.total--
+      this.deletingDocuments.delete(documentId)
     },
 
     updateDocument(documentId: string, updates: Partial<Document>) {
@@ -50,6 +70,14 @@ export const useDocumentsStore = defineStore('documents', {
 
     setUploading(uploading: boolean) {
       this.isUploading = uploading
+    },
+
+    setDeleting(documentId: string, deleting: boolean) {
+      if (deleting) {
+        this.deletingDocuments.add(documentId)
+      } else {
+        this.deletingDocuments.delete(documentId)
+      }
     },
   },
 })

@@ -11,15 +11,32 @@
         </p>
       </div>
 
-      <UButton
-        icon="i-heroicons-arrow-up-tray"
-        size="lg"
-        @click="openUploadModal"
-        :loading="documentsStore.isUploading"
-        :ui="{ rounded: 'rounded-xl' }"
-      >
-        Upload Document
-      </UButton>
+      <div class="flex items-center gap-3">
+        <UButton
+          icon="i-heroicons-folder"
+          size="lg"
+          color="gray"
+          variant="outline"
+          @click="isCategoriesModalOpen = true"
+          :ui="{ rounded: 'rounded-xl' }"
+        >
+          Manage Categories
+        </UButton>
+        <UButton
+          icon="i-heroicons-arrow-up-tray"
+          size="lg"
+          @click="openUploadModal"
+          :loading="documentsStore.isUploading"
+          :ui="{ rounded: 'rounded-xl' }"
+        >
+          Upload Document
+        </UButton>
+      </div>
+    </div>
+
+    <!-- Category Filter -->
+    <div v-if="documentsStore.documents.length > 0 || selectedCategoryId !== undefined" class="mb-6">
+      <CategoryFilter v-model="selectedCategoryId" @update:model-value="handleCategoryFilterChange" />
     </div>
 
     <!-- Empty State -->
@@ -33,7 +50,7 @@
       </div>
       <h3 class="text-2xl font-bold mb-2 text-gray-900 dark:text-gray-100">No documents yet</h3>
       <p class="text-gray-600 dark:text-gray-400 mb-6 max-w-md mx-auto">
-        Upload documents to start searching through them in chats. We support PDF, DOCX, and TXT files.
+        Upload documents to start searching through them in chats. We support PDF, DOCX, TXT, and MD files.
       </p>
       <UButton
         size="lg"
@@ -57,6 +74,16 @@
           ring: 'ring-1 ring-gray-200 dark:ring-gray-700'
         }"
       >
+        <!-- Loading overlay -->
+        <div
+          v-if="documentsStore.isDeleting(doc.id)"
+          class="absolute inset-0 bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm rounded-xl flex items-center justify-center z-10"
+        >
+          <div class="text-center">
+            <UIcon name="i-heroicons-arrow-path" class="w-8 h-8 mx-auto mb-2 text-primary-500 animate-spin" />
+            <p class="text-sm font-medium text-gray-700 dark:text-gray-300">Deleting...</p>
+          </div>
+        </div>
         <template #header>
           <div class="flex items-start justify-between gap-2">
             <div class="flex items-start gap-3 flex-1 min-w-0">
@@ -76,7 +103,7 @@
               </div>
             </div>
             
-            <UDropdown :items="getDocumentMenuItems(doc.id)">
+            <UDropdown :items="getDocumentMenuItems(doc)">
               <UButton
                 icon="i-heroicons-ellipsis-vertical"
                 size="sm"
@@ -103,10 +130,41 @@
           <UDivider />
 
           <div class="flex items-center justify-between">
+            <span class="text-sm text-gray-600 dark:text-gray-400">Category</span>
+            <UBadge
+              v-if="doc.category"
+              color="primary"
+              variant="soft"
+              size="sm"
+            >
+              {{ doc.category.name }}
+            </UBadge>
+            <span v-else class="text-sm text-gray-500 dark:text-gray-400 italic">
+              No category
+            </span>
+          </div>
+
+          <UDivider />
+
+          <div class="flex items-center justify-between">
             <span class="text-sm text-gray-600 dark:text-gray-400">Uploaded</span>
             <span class="text-sm font-medium text-gray-900 dark:text-gray-100">
               {{ formatDate(doc.createdAt) }}
             </span>
+          </div>
+
+          <UDivider v-if="doc.uploadedBy" />
+
+          <div v-if="doc.uploadedBy" class="flex items-center justify-between">
+            <span class="text-sm text-gray-600 dark:text-gray-400">Uploaded by</span>
+            <div class="flex flex-col items-end">
+              <span class="text-sm font-medium text-gray-900 dark:text-gray-100">
+                {{ doc.uploadedBy.name }}
+              </span>
+              <span class="text-xs text-gray-500 dark:text-gray-400">
+                {{ doc.uploadedBy.email }}
+              </span>
+            </div>
           </div>
 
           <div v-if="doc.status === 'error' && doc.errorMessage" class="mt-3">
@@ -156,7 +214,7 @@
               <UIcon name="i-heroicons-information-circle" class="w-5 h-5 text-primary-600 dark:text-primary-400 flex-shrink-0 mt-0.5" />
               <div class="text-sm text-primary-900 dark:text-primary-100">
                 <p class="font-medium mb-1">Supported formats</p>
-                <p class="text-primary-700 dark:text-primary-300">PDF, DOCX, TXT • Maximum size: 10MB</p>
+                <p class="text-primary-700 dark:text-primary-300">PDF, DOCX, TXT, MD • Maximum size: 10MB</p>
               </div>
             </div>
           </UCard>
@@ -175,7 +233,7 @@
           <input
             ref="fileInput"
             type="file"
-            accept=".pdf,.docx,.txt"
+            accept=".pdf,.docx,.txt,.md"
             @change="handleFileSelect"
             class="hidden"
           />
@@ -303,18 +361,6 @@
               >
                 Download {{ selectedDocumentForView?.name }}
               </UButton>
-              
-              <UButton
-                v-if="documentDownloadUrl"
-                size="lg"
-                icon="i-heroicons-arrow-top-right-on-square"
-                :to="documentDownloadUrl"
-                target="_blank"
-                variant="outline"
-                :ui="{ rounded: 'rounded-xl' }"
-              >
-                Open in New Tab
-              </UButton>
             </div>
             
             <UAlert
@@ -329,22 +375,119 @@
         </div>
       </UCard>
     </UModal>
+
+    <!-- Change Category Modal -->
+    <UModal v-model="isCategoryChangeModalOpen">
+      <UCard :ui="{ body: { padding: 'p-6' }, rounded: 'rounded-2xl' }">
+        <template #header>
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-xl bg-primary-100 dark:bg-primary-900/30 flex items-center justify-center">
+              <UIcon name="i-heroicons-folder" class="w-5 h-5 text-primary-600 dark:text-primary-400" />
+            </div>
+            <h3 class="text-xl font-bold text-gray-900 dark:text-gray-100">Change Category</h3>
+          </div>
+        </template>
+
+        <div class="space-y-4">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              Select Category
+            </label>
+            <CategorySelector
+              v-model="selectedCategoryForChange"
+              placeholder="Select category..."
+            />
+          </div>
+
+          <UAlert
+            v-if="categoryChangeError"
+            color="red"
+            variant="soft"
+            :description="categoryChangeError"
+            :ui="{ rounded: 'rounded-lg' }"
+          />
+        </div>
+
+        <template #footer>
+          <div class="flex justify-end gap-3">
+            <UButton
+              color="gray"
+              variant="ghost"
+              size="lg"
+              @click="closeCategoryChangeModal"
+              :ui="{ rounded: 'rounded-lg' }"
+            >
+              Cancel
+            </UButton>
+            <UButton
+              size="lg"
+              icon="i-heroicons-check"
+              @click="handleCategoryChange"
+              :loading="isChangingCategory"
+              :ui="{ rounded: 'rounded-lg' }"
+            >
+              Save
+            </UButton>
+          </div>
+        </template>
+      </UCard>
+    </UModal>
+
+    <!-- Categories Management Modal -->
+    <UModal v-model="isCategoriesModalOpen" :ui="{ width: 'w-full sm:max-w-4xl' }">
+      <UCard :ui="{ body: { padding: 'p-6' }, rounded: 'rounded-2xl' }">
+        <template #header>
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-3">
+              <div class="w-10 h-10 rounded-xl bg-primary-100 dark:bg-primary-900/30 flex items-center justify-center">
+                <UIcon name="i-heroicons-folder" class="w-5 h-5 text-primary-600 dark:text-primary-400" />
+              </div>
+              <h3 class="text-xl font-bold text-gray-900 dark:text-gray-100">Categories Management</h3>
+            </div>
+            <UButton
+              icon="i-heroicons-x-mark"
+              color="gray"
+              variant="ghost"
+              size="sm"
+              @click="isCategoriesModalOpen = false"
+            />
+          </div>
+        </template>
+
+        <CategoriesManagement />
+      </UCard>
+    </UModal>
   </div>
 </template>
 
 <script setup lang="ts">
-import { useDocumentsStore } from '~/stores/documents'
+import { useDocumentsStore, type Document } from '~/stores/documents'
 import { useAuthStore } from '~/stores/auth'
+import { useCategoriesStore } from '~/stores/categories'
 import { useDocuments } from '~/composables/useDocuments'
+import { useCategories } from '~/composables/useCategories'
 
 const documentsStore = useDocumentsStore()
 const authStore = useAuthStore()
-const { fetchDocuments, uploadDocument, deleteDocument, reprocessDocument, getDocumentContent, getDocumentOriginalUrl, downloadDocument } = useDocuments()
+const categoriesStore = useCategoriesStore()
+const { fetchDocuments, uploadDocument, deleteDocument, reprocessDocument, getDocumentContent, getDocumentOriginalUrl, downloadDocument, updateDocumentCategory } = useDocuments()
+const { fetchCategories } = useCategories()
 
 const isUploadModalOpen = ref(false)
 const selectedFile = ref<File | null>(null)
 const fileInput = ref<HTMLInputElement>()
 const currentPage = ref(1)
+const selectedCategoryId = ref<string | null | undefined>(undefined)
+
+// Category change modal
+const isCategoryChangeModalOpen = ref(false)
+const selectedDocumentForCategoryChange = ref<string | null>(null)
+const selectedCategoryForChange = ref<string | null>(null)
+const isChangingCategory = ref(false)
+const categoryChangeError = ref('')
+
+// Categories management modal
+const isCategoriesModalOpen = ref(false)
 
 // Document viewer modal
 const isDocumentViewerOpen = ref(false)
@@ -378,7 +521,75 @@ const handleUpload = async () => {
 }
 
 const handlePageChange = (page: number) => {
-  fetchDocuments(page, 10)
+  fetchDocuments(page, 10, selectedCategoryId.value)
+}
+
+const handleCategoryFilterChange = (categoryId: string | null | undefined) => {
+  selectedCategoryId.value = categoryId
+  currentPage.value = 1
+  fetchDocuments(1, 10, categoryId)
+}
+
+const openCategoryChangeModal = (documentId: string) => {
+  const document = documentsStore.documents.find(d => d.id === documentId)
+  if (!document) return
+
+  selectedDocumentForCategoryChange.value = documentId
+  selectedCategoryForChange.value = document.categoryId || null
+  categoryChangeError.value = ''
+  isCategoryChangeModalOpen.value = true
+}
+
+const closeCategoryChangeModal = () => {
+  isCategoryChangeModalOpen.value = false
+  selectedDocumentForCategoryChange.value = null
+  selectedCategoryForChange.value = null
+  categoryChangeError.value = ''
+}
+
+const handleCategoryChange = async () => {
+  if (!selectedDocumentForCategoryChange.value) return
+
+  isChangingCategory.value = true
+  categoryChangeError.value = ''
+
+  try {
+    await updateDocumentCategory(
+      selectedDocumentForCategoryChange.value,
+      selectedCategoryForChange.value
+    )
+
+    // Refresh categories to update document counts
+    await fetchCategories()
+    
+    // Refresh documents list to reflect category changes
+    await fetchDocuments(currentPage.value, 10, selectedCategoryId.value)
+
+    const toast = useToast()
+    toast.add({
+      title: 'Category Updated',
+      description: 'Document category has been successfully updated',
+      color: 'green',
+      icon: 'i-heroicons-check-circle'
+    })
+
+    closeCategoryChangeModal()
+  } catch (error: any) {
+    console.error('Error changing document category:', error)
+    
+    const errorMessage = error.response?.data?.message || 'Failed to update category'
+    categoryChangeError.value = errorMessage
+
+    const toast = useToast()
+    toast.add({
+      title: 'Update Failed',
+      description: errorMessage,
+      color: 'red',
+      icon: 'i-heroicons-exclamation-triangle'
+    })
+  } finally {
+    isChangingCategory.value = false
+  }
 }
 
 const openDocumentViewer = async (documentId: string, type: 'content' | 'download') => {
@@ -450,27 +661,41 @@ const handleDirectDownload = async () => {
   }
 }
 
-const getDocumentMenuItems = (documentId: string) => [
-  [
-    {
-      label: 'View Content',
-      icon: 'i-heroicons-eye',
-      click: () => openDocumentViewer(documentId, 'content'),
-    },
-    {
-      label: 'Download Original',
-      icon: 'i-heroicons-arrow-down-tray',
-      click: () => openDocumentViewer(documentId, 'download'),
-    },
-  ],
-  [
-    {
-      label: 'Delete',
-      icon: 'i-heroicons-trash',
-      click: () => deleteDocument(documentId),
-    },
-  ],
-]
+const getDocumentMenuItems = (doc: Document) => {
+  const menuItems: any[] = [
+    [
+      {
+        label: 'View Content',
+        icon: 'i-heroicons-eye',
+        click: () => openDocumentViewer(doc.id, 'content'),
+      },
+      {
+        label: 'Download Original',
+        icon: 'i-heroicons-arrow-down-tray',
+        click: () => openDocumentViewer(doc.id, 'download'),
+      },
+      {
+        label: 'Change Category',
+        icon: 'i-heroicons-folder',
+        click: () => openCategoryChangeModal(doc.id),
+      },
+    ],
+  ]
+
+  // Only show delete option if current user is the one who uploaded the document
+  const canDelete = !doc.uploadedBy || doc.uploadedBy.email === authStore.user?.email
+  if (canDelete) {
+    menuItems.push([
+      {
+        label: 'Delete',
+        icon: 'i-heroicons-trash',
+        click: () => deleteDocument(doc.id),
+      },
+    ])
+  }
+
+  return menuItems
+}
 
 const getFileIcon = (type: string) => {
   if (type.includes('pdf')) return 'i-heroicons-document-text'
@@ -505,9 +730,22 @@ onMounted(async () => {
     authStore.loadFromStorage()
   }
   
-  // Only fetch documents if user is authenticated
+  // Only fetch documents and categories if user is authenticated
   if (authStore.isAuthenticated) {
-    await fetchDocuments()
+    await Promise.all([
+      fetchCategories(),
+      fetchDocuments(1, 10, selectedCategoryId.value)
+    ])
+  }
+})
+
+// Watch for categories modal to refresh categories when it closes
+watch(isCategoriesModalOpen, async (isOpen) => {
+  if (!isOpen && authStore.isAuthenticated) {
+    // Refresh categories when modal closes
+    await fetchCategories()
+    // Refresh documents to update category counts
+    await fetchDocuments(currentPage.value, 10, selectedCategoryId.value)
   }
 })
 </script>
