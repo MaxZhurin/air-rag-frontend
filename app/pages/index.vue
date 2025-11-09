@@ -135,32 +135,6 @@
           </UButton>
         </div>
 
-        <!-- Test User Info -->
-        <UCard
-          class="mt-6"
-          :ui="{
-            body: { padding: 'p-4' },
-            background: 'bg-primary-50 dark:bg-primary-950/30',
-            ring: 'ring-1 ring-primary-200 dark:ring-primary-800',
-            rounded: 'rounded-xl'
-          }"
-        >
-          <div class="flex items-start gap-3">
-            <div class="flex-shrink-0">
-              <UIcon name="i-heroicons-information-circle" class="w-5 h-5 text-primary-600 dark:text-primary-400" />
-            </div>
-            <div class="flex-1 min-w-0">
-              <h3 class="text-sm font-semibold text-primary-900 dark:text-primary-100 mb-1">
-                Test User Credentials
-              </h3>
-              <div class="text-xs text-primary-700 dark:text-primary-300 space-y-0.5">
-                <p><strong>Username:</strong> mzhurin@air.io</p>
-                <p><strong>Password:</strong> 123456789</p>
-              </div>
-            </div>
-          </div>
-        </UCard>
-
         <!-- Error/Success Message -->
         <Transition name="fade">
           <UAlert
