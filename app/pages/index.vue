@@ -42,7 +42,7 @@
             <UInput
               v-model="loginForm.username"
               type="text"
-              placeholder="Enter your username"
+              placeholder="Enter your email"
               icon="i-heroicons-user"
               size="lg"
               :ui="{ rounded: 'rounded-lg' }"
