@@ -38,7 +38,7 @@
 
         <!-- Login Form -->
         <div v-if="activeTab === 0" class="space-y-4">
-          <UFormGroup label="Username" name="username">
+          <UFormGroup label="Email" name="username">
             <UInput
               v-model="loginForm.username"
               type="text"
